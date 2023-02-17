@@ -6,15 +6,33 @@
 // @author       4as
 // @match        *://chat.openai.com/*
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
-// @downloadURL  https://raw.githubusercontent.com/4as/ChatGPT-DeMod/main/ChatGPT%20DeMod.user.js
-// @updateURL    https://raw.githubusercontent.com/4as/ChatGPT-DeMod/main/ChatGPT%20DeMod.user.js
+// @downloadURL  https://github.com/StealthC/ChatGPT-DeMod/raw/main/ChatGPT%20DeMod.user.js
+// @updateURL    https://github.com/StealthC/ChatGPT-DeMod/raw/main/ChatGPT%20DeMod.user.js
+// @require      https://openuserjs.org/src/libs/sizzle/GM_config.js
 // @grant        GM.setValue
 // @grant        GM.getValue
 // @run-at       document-start
 // ==/UserScript==
 'use strict';
 
-var url = "https://raw.githubusercontent.com/4as/ChatGPT-DeMod/main/conversations.json";
+GM_config.init(
+    {
+        'id': 'ChatGPT DeMod Config', // The id used for this instance of GM_config
+        'fields': // Fields object
+        {
+            'conversations_url': // This is the id of the field
+            {
+                'label': 'Conversations URL', // Appears next to field
+                'type': 'text', // Makes this setting a text field
+                'default': 'https://raw.githubusercontent.com/4as/ChatGPT-DeMod/main/conversations.json' // Default value if user doesn't change it
+            }
+        }
+    });
+
+GM_config.onSave = async () => {
+    RefreshConversations(GM_config.get('conversations_url'));
+}
+var url = GM_config.get('conversations_url');
 var has_conversations;
 var conversations;
 
@@ -47,21 +65,29 @@ const DEMOD_KEY = 'DeModState';
 var is_on = false;
 
 // Adding DeMod button
+const demod_div = document.createElement('div');
 const demod_button = document.createElement('button');
+const demod_config_button = document.createElement('button');
+demod_div.appendChild(demod_button);
+demod_div.appendChild(demod_config_button);
 updateDeModState()
 
-demod_button.style.position = 'fixed';
-demod_button.style.bottom = '2px';
-demod_button.style.left = '50%';
-demod_button.style.transform = 'translate(-50%, 0%)';
-demod_button.style.color = 'white';
-demod_button.style.padding = '12px 20px';
-demod_button.style.border = 'none';
-demod_button.style.cursor = 'pointer';
-demod_button.style.outline = 'none';
-demod_button.style.borderRadius = '4px';
-demod_button.style.opacity = '50%'
-demod_button.style.zIndex = 999;
+demod_div.style.display = "flex"
+demod_div.style.justifyContent = "space-between";
+demod_div.style.gap = "1em";
+demod_div.style.alignItems = "center";
+demod_div.style.position = 'fixed';
+demod_div.style.bottom = '2px';
+demod_div.style.left = '50%';
+demod_div.style.transform = 'translate(-50%, 0%)';
+demod_div.style.color = 'white';
+demod_div.style.padding = '12px 20px';
+demod_div.style.border = 'none';
+demod_div.style.cursor = 'pointer';
+demod_div.style.outline = 'none';
+demod_div.style.borderRadius = '4px';
+demod_div.style.opacity = '50%'
+demod_div.style.zIndex = 999;
 
 demod_button.addEventListener('click', () => {
     is_on = !is_on;
@@ -71,8 +97,14 @@ demod_button.addEventListener('click', () => {
 
 function updateDeModState() {
     demod_button.textContent = "DeMod: " + (is_on ? "On" : "Off");
-    demod_button.style.backgroundColor = is_on ? '#4CAF50' : '#AF4C50';
+    demod_div.style.backgroundColor = is_on ? '#4CAF50' : '#AF4C50';
 }
+
+demod_config_button.textContent = "⚙️"
+
+demod_config_button.addEventListener('click', () => {
+    GM_config.open();
+});
 
 var current_message = null;
 var used_opening = Math.random() > 0.5;
@@ -132,9 +164,7 @@ unsafeWindow.fetch = async (...arg) => {
     return original_fetch(...arg);
 }
 
-
-
-(async () => {
+async function RefreshConversations(url) {
     'use strict';
     is_on = await GM.getValue(DEMOD_KEY, false);
     await fetch(url)
@@ -143,8 +173,11 @@ unsafeWindow.fetch = async (...arg) => {
         .catch(err => { console.log("Failed to download conversations: " + err); });
     if (conversations != null) {
         conversation_page = Math.floor(Math.random() * conversations.conversations.length);
+        demod_button.disabled = false;
         updateDeModState();
-        document.body.appendChild(demod_button);
+    } else {
+        demod_button.textContent = "Error fetching conversations!"
+        demod_button.disabled = true;
     }
 
     XMLHttpRequest.prototype.realOpen = XMLHttpRequest.prototype.open;
@@ -152,5 +185,12 @@ unsafeWindow.fetch = async (...arg) => {
         if (is_on && url.indexOf("/track/?") != -1) return;
         this.realOpen(method, url, async, user, password);
     }
+}
+
+(async () => {
+    if (!demod_div.parentNode) {
+        document.body.appendChild(demod_div);
+    }
+    return RefreshConversations(url)
 
 })();
