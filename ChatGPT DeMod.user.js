@@ -12,7 +12,6 @@
 // @grant        GM.getValue
 // @run-at       document-start
 // ==/UserScript==
-
 'use strict';
 
 var url = "https://raw.githubusercontent.com/4as/ChatGPT-DeMod/main/conversations.json";
@@ -20,7 +19,7 @@ var has_conversations;
 var conversations;
 
 function getOpening() {
-    if( !has_conversations ) return "Hi";
+    if (!has_conversations) return "Hi";
     var idx = Math.floor(Math.random() * conversations.openings.length);
     return conversations.openings[idx];
 }
@@ -28,17 +27,17 @@ function getOpening() {
 var conversation_page = 0;
 var conversation_idx = 0;
 function getConversation() {
-    if( !has_conversations ) return "Can you tell me what exactly can you do?";
-    if( conversation_page >= conversations.conversations.length ) conversation_page = 0;
-    if( conversation_idx == conversations.conversations[conversation_page].length ) return null;
+    if (!has_conversations) return "Can you tell me what exactly can you do?";
+    if (conversation_page >= conversations.conversations.length) conversation_page = 0;
+    if (conversation_idx == conversations.conversations[conversation_page].length) return null;
     let message = conversations.conversations[conversation_page][conversation_idx];
-    conversation_idx ++;
+    conversation_idx++;
     return message;
 }
 
 function getEnding() {
-    if( !has_conversations ) return "Can you tell me what exactly can you do?";
-    conversation_page ++;
+    if (!has_conversations) return "Can you tell me what exactly can you do?";
+    conversation_page++;
     conversation_idx = 0;
     var idx = Math.floor(Math.random() * conversations.endings.length);
     return conversations.endings[idx];
@@ -47,7 +46,7 @@ function getEnding() {
 const DEMOD_KEY = 'DeModState';
 var is_on = false;
 
- // Adding DeMod button
+// Adding DeMod button
 const demod_button = document.createElement('button');
 updateDeModState()
 
@@ -61,6 +60,7 @@ demod_button.style.border = 'none';
 demod_button.style.cursor = 'pointer';
 demod_button.style.outline = 'none';
 demod_button.style.borderRadius = '4px';
+demod_button.style.opacity = '50%'
 demod_button.style.zIndex = 999;
 
 demod_button.addEventListener('click', () => {
@@ -70,8 +70,8 @@ demod_button.addEventListener('click', () => {
 });
 
 function updateDeModState() {
-    demod_button.textContent = "DeMod: "+(is_on?"On":"Off");
-	demod_button.style.backgroundColor = is_on?'#4CAF50':'#AF4C50';
+    demod_button.textContent = "DeMod: " + (is_on ? "On" : "Off");
+    demod_button.style.backgroundColor = is_on ? '#4CAF50' : '#AF4C50';
 }
 
 var current_message = null;
@@ -84,46 +84,46 @@ var intercept_count_total = 0;
 const original_fetch = unsafeWindow.fetch;
 
 unsafeWindow.fetch = async (...arg) => {
-    if( has_conversations && arg[0].indexOf('/moderation') != -1 ) {
-        if( is_on ) {
-            intercept_count_total ++;
+    if (has_conversations && arg[0].indexOf('/moderation') != -1) {
+        if (is_on) {
+            intercept_count_total++;
             var body = JSON.parse(arg[1].body);
-            if( body.hasOwnProperty("input") ) {
+            if (body.hasOwnProperty("input")) {
                 var text = null;
-                if( currently_responding ) {
-                    text = current_message.input + "\n\n"+current_message.output;
+                if (currently_responding) {
+                    text = current_message.input + "\n\n" + current_message.output;
                 }
                 else {
-                    if( !used_opening ) {
+                    if (!used_opening) {
                         current_message = getOpening();
                     }
                     else {
                         current_message = getConversation();
-                        if(current_message == null) current_message = getEnding();
+                        if (current_message == null) current_message = getEnding();
                     }
                     text = current_message.input;
                 }
-                if( text == null ) text = "Hi!";
-                intercept_count_normal ++;
+                if (text == null) text = "Hi!";
+                intercept_count_normal++;
                 body.input = text;
             }
             else {
                 var intercepted = false;
-                for(var j = 0; j<body.messages.length; j++) {
+                for (var j = 0; j < body.messages.length; j++) {
                     var msg = body.messages[j];
-                    if( msg.content.content_type == "text" ) {
+                    if (msg.content.content_type == "text") {
                         msg.content.parts = [current_message.output];
                         intercepted = true;
                     }
                 }
-                if( intercepted ) {
-                    intercept_count_extended ++;
+                if (intercepted) {
+                    intercept_count_extended++;
                 }
                 else {
-                    console.error("Moderation call interception failed, unknown format! Message:\n"+JSON.stringify(body));
+                    console.error("Moderation call interception failed, unknown format! Message:\n" + JSON.stringify(body));
                 }
             }
-            console.log("Moderation call intercepted. Normal count: "+intercept_count_normal+", extended count: "+intercept_count_extended+", total: "+intercept_count_total);
+            console.log("Moderation call intercepted. Normal count: " + intercept_count_normal + ", extended count: " + intercept_count_extended + ", total: " + intercept_count_total);
             currently_responding = !currently_responding;
             arg[1].body = JSON.stringify(body);
         }
@@ -139,18 +139,18 @@ unsafeWindow.fetch = async (...arg) => {
     is_on = await GM.getValue(DEMOD_KEY, false);
     await fetch(url)
         .then(res => res.json())
-        .then(out => { (conversations = out); has_conversations = true; console.log("Conversations loaded! Openings: "+conversations.openings.length+", main: "+conversations.conversations.length+", endings: "+conversations.endings.length); } )
-        .catch(err => { console.log("Failed to download conversations: "+err); } );
-    if( conversations != null ) {
+        .then(out => { (conversations = out); has_conversations = true; console.log("Conversations loaded! Openings: " + conversations.openings.length + ", main: " + conversations.conversations.length + ", endings: " + conversations.endings.length); })
+        .catch(err => { console.log("Failed to download conversations: " + err); });
+    if (conversations != null) {
         conversation_page = Math.floor(Math.random() * conversations.conversations.length);
         updateDeModState();
         document.body.appendChild(demod_button);
     }
 
     XMLHttpRequest.prototype.realOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
-        if( is_on && url.indexOf("/track/?") != -1 ) return;
-        this.realOpen (method, url, async, user, password);
+    XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
+        if (is_on && url.indexOf("/track/?") != -1) return;
+        this.realOpen(method, url, async, user, password);
     }
 
 })();
